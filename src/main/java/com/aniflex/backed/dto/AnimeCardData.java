@@ -5,10 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class GenreData {
+public class AnimeCardData {
 	
 	@JsonProperty("mal_id")
-	private int malId;
+	private int mal_id;
 	
 	@JsonProperty("name")
 	private String name;
@@ -16,8 +16,10 @@ public class GenreData {
 	@JsonProperty("url")
 	private String url;
 	
-	private String animeName;
+	@JsonProperty("title")
+	private String title;
 	
-	private String animeUrl;
+	@JsonProperty("images")
+	private Image images;
 	
 }
