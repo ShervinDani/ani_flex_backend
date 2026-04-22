@@ -1,15 +1,13 @@
 package com.aniflex.backed.dto;
 
-import java.util.List;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.Data;
 
 @Data
-public class Genre {
+public class Image {
 	
-	@JsonProperty("data")
-	private List<GenreData> data;
+	@JsonProperty("jpg")
+	private Jpg jpg;
 	
 }

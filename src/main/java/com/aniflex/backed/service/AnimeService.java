@@ -3,30 +3,27 @@ package com.aniflex.backed.service;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import com.aniflex.backed.dto.Genre;
-import com.aniflex.backed.dto.GenreData;
+import com.aniflex.backed.dto.AnimeCard;
+import com.aniflex.backed.dto.AnimeCardData;
+import com.aniflex.backed.dto.AnimeHomeData;
+import com.aniflex.backed.dto.Image;
+import com.aniflex.backed.dto.Jpg;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-
-
 
 @Service
 public class AnimeService {
 
 	private String BASE_URL = "https://api.jikan.moe/v4/";
-	private static final Logger logger = LoggerFactory.getLogger(AnimeService.class);
-	
+
 	@Autowired
 	private ObjectMapper mapper;
 
@@ -35,45 +32,56 @@ public class AnimeService {
 	@Autowired
 	private RestTemplate restTemplate;
 
-	@Cacheable(value = "animeCache")
-    public ResponseEntity<String> getAllAnime() {
-    	return restTemplate.getForEntity(BASE_URL + "anime", String.class);
-    }
+	@Autowired
+	private AnimeHomeData animeHomeData;
 
-	@Cacheable(value = "animeCache", key = "#filters.toString()")
-	public ResponseEntity<String> getAllAnimeByFilter(Map<String, String> filters) {
-		logger.info(BASE_URL + " Called..!");
-		System.out.println("Inside Filter Call " + BASE_URL);
-		return restTemplate.getForEntity(BASE_URL + "anime" +uriBuilder(filters), String.class);
+	@Cacheable(value = "animeCache")
+	public ResponseEntity<String> getAllAnime() {
+		return restTemplate.getForEntity(BASE_URL + "anime", String.class);
 	}
-	
+
+	public ResponseEntity<String> getAllAnimeByFilter(Map<String, String> filters) {
+		return restTemplate.getForEntity(BASE_URL + "anime" + uriBuilder(filters), String.class);
+	}
+
 	private String uriBuilder(Map<String, String> queryParams) {
 
-	    if (queryParams == null || queryParams.isEmpty()) {
-	        return "";
-	    }
+		if (queryParams == null || queryParams.isEmpty()) {
+			return "";
+		}
 
-	    return queryParams.entrySet().stream()
-	            .map(entry -> entry.getKey() + "=" + entry.getValue())
-	            .collect(Collectors.joining("&", "?", ""));
+		return queryParams.entrySet().stream().map(entry -> entry.getKey() + "=" + entry.getValue())
+				.collect(Collectors.joining("&", "?", ""));
 	}
 
-	@Cacheable(value = "animeCache", key = "'genres'")
-	public ResponseEntity<Genre> getGenres() {
-		return loadGenre();
+	@Cacheable(value = "animeCache", key = "'homePageList'")
+	public ResponseEntity<AnimeHomeData> getForHomePage() {
+		return this.loadAnimeForHomePage();
 	}
-	
-	@CachePut(value = "animeCache", key = "'genres'")
-	public ResponseEntity<Genre> refreshGenre() {
-		return loadGenre();
+
+	public void refreshAnimeHomeDetails(String category) {
+
 	}
-	
-	private ResponseEntity<Genre> loadGenre()
-	{
-		ResponseEntity<Genre> responseBody =  restTemplate.getForEntity(BASE_URL + "genres/anime", Genre.class);
-		Genre genre = responseBody.getBody();
-		for(GenreData data : genre.getData())
-		{
+
+	public ResponseEntity<AnimeHomeData> loadAnimeForHomePage() {
+		animeHomeData.setGenreHighlights(this.loadGenre());
+		animeHomeData.setPopularNow(loadAnime("popularity"));
+		animeHomeData.setNewReleases(this.loadAnime("rank"));
+		animeHomeData.setTopRanking(this.loadAnime("rank"));
+		return new ResponseEntity<AnimeHomeData>(animeHomeData, HttpStatus.OK);
+	}
+
+	private AnimeCard loadAnime(String filter) {
+		ResponseEntity<AnimeCard> responseBody = restTemplate
+				.getForEntity(BASE_URL + "anime" + "?order_by=" + filter + "&sort=desc", AnimeCard.class);
+		AnimeCard genre = responseBody.getBody();
+		return genre;
+	}
+
+	private AnimeCard loadGenre() {
+		ResponseEntity<AnimeCard> responseBody = restTemplate.getForEntity(BASE_URL + "genres/anime", AnimeCard.class);
+		AnimeCard genre = responseBody.getBody();
+		for (AnimeCardData data : genre.getData()) {
 			this.getGenreAnime(data);
 			try {
 				Thread.sleep(1000);
@@ -81,25 +89,20 @@ public class AnimeService {
 				e.printStackTrace();
 			}
 		}
-		return new ResponseEntity<Genre>(genre, HttpStatus.OK);
+		return genre;
 	}
-	
-	private void getGenreAnime(GenreData data)
-	{
-		ResponseEntity<String> responseBody = restTemplate.getForEntity(BASE_URL + "/anime?genres=" + data.getMalId() + "&limit=1" , String.class);
+
+	private void getGenreAnime(AnimeCardData data) {
+		ResponseEntity<String> responseBody = restTemplate
+				.getForEntity(BASE_URL + "/anime?genres=" + data.getMal_id() + "&limit=1", String.class);
 		jsonNode = mapper.readTree(responseBody.getBody());
 		jsonNode = jsonNode.path("data").get(0);
-		data.setAnimeName(jsonNode.path("title_english").asString());
-		data.setAnimeUrl(jsonNode.path("images").path("jpg").path("image_url").asString());
+		data.setTitle(jsonNode.path("title").asString());
+		Image image = new Image();
+		Jpg jpg = new Jpg();
+		jpg.setImage_url(jsonNode.path("images").path("jpg").path("image_url").asString());
+		image.setJpg(jpg);
+		data.setImages(image);
 	}
 
-	public ResponseEntity<String> getForHomePage(String category) {
-		return null;
-	}
-
-	public void refreshAnimeHomeDetails(String category) {
-		
-	}
-	
-	
 }
