@@ -1,5 +1,6 @@
 package com.aniflex.backed.service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -66,7 +67,7 @@ public class AnimeService {
 	public ResponseEntity<AnimeHomeData> loadAnimeForHomePage() {
 		animeHomeData.setGenreHighlights(this.loadGenre());
 		animeHomeData.setPopularNow(loadAnime("popularity"));
-		animeHomeData.setNewReleases(this.loadAnime("rank"));
+		animeHomeData.setNewReleases(this.loadAnime("start_date"));
 		animeHomeData.setTopRanking(this.loadAnime("rank"));
 		return new ResponseEntity<AnimeHomeData>(animeHomeData, HttpStatus.OK);
 	}
@@ -74,8 +75,19 @@ public class AnimeService {
 	private AnimeCard loadAnime(String filter) {
 		ResponseEntity<AnimeCard> responseBody = restTemplate
 				.getForEntity(BASE_URL + "anime" + "?order_by=" + filter + "&sort=desc", AnimeCard.class);
-		AnimeCard genre = responseBody.getBody();
-		return genre;
+		AnimeCard card = responseBody.getBody();
+	    List<AnimeCardData> deduped = card.getData().stream()
+	        .collect(Collectors.toMap(
+	            AnimeCardData::getMal_id,
+	            d -> d,
+	            (existing, duplicate) -> existing  // keep first on conflict
+	        ))
+	        .values()
+	        .stream()
+	        .collect(Collectors.toList());
+	    
+	    card.setData(deduped);
+	    return card;
 	}
 
 	private AnimeCard loadGenre() {
@@ -101,6 +113,8 @@ public class AnimeService {
 		Image image = new Image();
 		Jpg jpg = new Jpg();
 		jpg.setImage_url(jsonNode.path("images").path("jpg").path("image_url").asString());
+		jpg.setLarge_image_url(jsonNode.path("images").path("jpg").path("large_image_url").asString());
+		jpg.setSmall_image_url(jsonNode.path("images").path("jpg").path("small_image_url").asString());
 		image.setJpg(jpg);
 		data.setImages(image);
 	}
