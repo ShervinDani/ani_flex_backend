@@ -65,16 +65,31 @@ public class AnimeService {
 	}
 
 	public ResponseEntity<AnimeHomeData> loadAnimeForHomePage() {
-		animeHomeData.setGenreHighlights(this.loadGenre());
-		animeHomeData.setPopularNow(loadAnime("popularity"));
-		animeHomeData.setNewReleases(this.loadAnime("start_date"));
-		animeHomeData.setTopRanking(this.loadAnime("rank"));
+		try
+		{
+			animeHomeData.setGenreHighlights(this.loadGenre());
+			animeHomeData.setPopularNow(loadAnime("order_by=popularity"));
+			Thread.sleep(500);
+			animeHomeData.setNewReleases(this.loadAnime("status=airing&sort=desc"));
+			Thread.sleep(500);
+			animeHomeData.setTopRanking(this.loadAnime("min_score=5&sort=desc"));
+			Thread.sleep(500);
+			animeHomeData.setUpComing(this.loadAnime("status=upcoming&sort=desc"));
+			Thread.sleep(500);
+			animeHomeData.setCompleted(this.loadAnime("status=complete&sort=desc"));
+			Thread.sleep(500);
+			animeHomeData.setMovieAnime(this.loadAnime("type=movie&min_score=5&status=complete&sort=desc"));
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
 		return new ResponseEntity<AnimeHomeData>(animeHomeData, HttpStatus.OK);
 	}
 
 	private AnimeCard loadAnime(String filter) {
 		ResponseEntity<AnimeCard> responseBody = restTemplate
-				.getForEntity(BASE_URL + "anime" + "?order_by=" + filter + "&sort=desc", AnimeCard.class);
+				.getForEntity(BASE_URL + "anime?" + filter, AnimeCard.class);
 		AnimeCard card = responseBody.getBody();
 	    List<AnimeCardData> deduped = card.getData().stream()
 	        .collect(Collectors.toMap(

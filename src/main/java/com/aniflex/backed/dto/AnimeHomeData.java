@@ -12,5 +12,8 @@ public class AnimeHomeData {
 	private AnimeCard popularNow;
 	private AnimeCard newReleases;
 	private AnimeCard genreHighlights;
+	private AnimeCard upComing;
+	private AnimeCard completed;
+	private AnimeCard movieAnime;
 	
 }
